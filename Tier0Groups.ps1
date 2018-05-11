@@ -133,7 +133,7 @@ foreach($member in $members){
         }
         else
         {
-            $accountDisStatus = "none-disabled"
+            $accountDisStatus = "enabled"
         }  
         #If Smartcard Required
         if( $memberInfor.userAccountControl -band 262144)
