@@ -2,7 +2,8 @@ $dateTimeFile = (get-date).ToString("yyyy MM dd")
 $outFile = $($PSScriptRoot)+"\Report-$($dateTimeFile).csv"
 $outFileHTML =$($PSScriptRoot)+"\Report-$($dateTimeFile).html"
 $delimiter = ","
-
+$userName = Read-Host "Reporter"
+$domain = Read-Host "Domain"
 $groupsData =@(
         "Account Operators"
         "Administrators"
@@ -17,7 +18,7 @@ $groupsData =@(
 $members = @()
 
 foreach($group in $groupsData){
-    $member = Get-ADGroupMember -Identity $group |?{$_.objectClass -eq "user"} | select -ExpandProperty sAMAccountName
+    $member = Get-ADGroupMember -Identity $group -Recursive -Server $domain |?{$_.objectClass -eq "user"} | select -ExpandProperty sAMAccountName
     $members += $member
 }
 
@@ -44,21 +45,15 @@ $global:passNExpSet = 0
 foreach($member in $members){
     
     try{
-        $memberInfor = Get-ADUser -Identity $member -Properties *|select distinguishedName,
+        $memberInfor = Get-ADUser -Identity $member -Server $domain -Properties *|select distinguishedName,
                                                                     sAMAccountName,
                                                                     mail,
                                                                     lastLogonTimeStamp,
-                                                                    pwdLastSet,
-                                                                    badpwdcount,
+                                                                    pwdLastSet,                                                                    
                                                                     accountExpires,
-                                                                    userAccountControl,
-                                                                    modifyTimeStamp,
-                                                                    lockoutTime,
-                                                                    badPasswordTime,
-                                                                    maxPwdAge,
+                                                                    userAccountControl,                                                                  
                                                                     Description
-
-       
+                                                                          
         #Last Logon
         $lastLogon = [datetime]::fromfiletime($memberInfor.lastLogonTimeStam)        
         $lastLogon= $lastLogon.ToString("yyyy/MM/dd")     
@@ -166,8 +161,7 @@ foreach($member in $members){
         {
             $passNExp = "None Set"
             $passTrue = $true
-        }  
-       	  
+        }         	  
         
         $obj = New-object -TypeName psobject
         $obj | Add-Member -MemberType NoteProperty -Name "Distinguished Name" -Value $memberInfor.distinguishedName
@@ -185,6 +179,7 @@ foreach($member in $members){
         $obj | Export-Csv -Path "$outFile" -NoTypeInformation -append -Delimiter $delimiter 
     }
     catch{
+       
         Write-Error "Can't get this user $member"
     }
 
@@ -341,9 +336,7 @@ drawPie -hash $passExpHash -title "Password Never Expired Settings"|Out-Null
 drawBar -hash $lastLogonHash -title  "Last Logon Date" -axisX "years"|Out-Null
 drawBar -hash $passSetHash -title "Password Last Changed" -axisX "years"|Out-Null
 
-
 # Generating HTML Reports
-$userName = Read-Host "Reporter"
 $groupsData = $groupsData|Out-String
 $body =@'
 <h1> Forest Report </h1>
@@ -395,12 +388,11 @@ function Generate-Html {
 
 Generate-Html -IncludeImages $global:IncludeImages
 
-
 foreach($image in $IncludeImages){
 
     rm $image 
 }
 #Finish
-Write-Host "`nData file has been save in $outFile`n"
-Write-Host "`nReport file has been save in $outFileHTML`n"
+Write-Host "`nData file has been save in $outFile" -ForegroundColor Cyan
+Write-Host "`nReport file has been save in $outFileHTML`n" -ForegroundColor Cyan
 Write-Verbose -Message  "Script Finished!!" -Verbose
