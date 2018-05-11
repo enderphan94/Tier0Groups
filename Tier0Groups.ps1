@@ -401,5 +401,6 @@ foreach($image in $IncludeImages){
     rm $image 
 }
 #Finish
-Write-Host
+Write-Host "`nData file has been save in $outFile`n"
+Write-Host "`nReport file has been save in $outFileHTML`n"
 Write-Verbose -Message  "Script Finished!!" -Verbose
