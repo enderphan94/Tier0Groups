@@ -1,5 +1,3 @@
-# Tier0Groups
-
 # Monitoring sensitive groups and tier 0 groups with PowerShell & Zabbix
 
 ## Getting Started
@@ -17,17 +15,37 @@ These instructions will get you a copy of the project up and running on your loc
 The tool has been tested in Windows Server 2012
 ```
 
-### Installing
+### Installing Tier 0 groups monitoring
 
 A step by step series of examples that tell you have to get a development env running
 
 1. Clone it to your directory:
 
-    `git clone https://github.com/enderphan94/tier0group`
+    `git clone https://github.com/enderphan94/Tier0groupsmonitoring.ps1`
     
 2. Upgrade to PowerShell 4.0 at a minimum ( if needed )
 
 3. Import-Module Active Directory ( if needed )
+
+4. Setup Zabbix API web application
+
+5. Create host and items
+
+6. Configure triggeration
+
+### Installing Privileged accounts gathering
+
+A step by step series of examples that tell you have to get a development env running
+
+1. Clone it to your directory:
+
+    `git clone https://github.com/enderphan94/Tier0groups.ps1`
+    
+2. Upgrade to PowerShell 4.0 at a minimum ( if needed )
+
+3. Import-Module Active Directory ( if needed )
+
+4. Execute the script with PowerShell.exe
 
 ## Deployment
 
