@@ -1,8 +1,9 @@
 param (
-    [Parameter(Mandatory=$false)][string]$zabbix_url="https://evdetect.sbcore.net/ZBX/api/sender.php"
+    [Parameter(Mandatory=$false)][string]$zabbix_url="https://evdetect.cyber.net/ZBX/api/sender.php",
+    [Parameter(Mandatory=$false)][string]$domain = "cyber.se",
+    [Parameter(Mandatory=$false)][string]$zabbixhost = "InfraDir-ADcore-test-cyber"
 )
 
-$xml = [XML](Get-Content C:\Temp\p998wph\HealthCheck\domain.xml)
 
 function TrustCert{
 add-type @"
@@ -50,87 +51,70 @@ function send-zabbix {
     }
 }
 
-function DomainMonitor{
-    param(
-        [Parameter(Mandatory=$true)][string]$domain
-    )
-    
-    [string]$DN = (Get-ADDomain -server $domain).DistinguishedName
- 
-    $SERVER_TRUST_ACCOUNT = 0x2000
-    $TRUSTED_FOR_DELEGATION = 0x80000
-    $TRUSTED_TO_AUTH_FOR_DELEGATION= 0x1000000
-    $PARTIAL_SECRETS_ACCOUNT = 0x4000000  
-    $bitmask = $TRUSTED_FOR_DELEGATION -bor $TRUSTED_TO_AUTH_FOR_DELEGATION -bor $PARTIAL_SECRETS_ACCOUNT
- 
-    # LDAP filter to find all accounts having some form of delegation.
-    # 1.2.840.113556.1.4.804 is an OR query. 
-    $filter = @"
-    (&
-      (servicePrincipalname=*)
-      (|
-        (msDS-AllowedToActOnBehalfOfOtherIdentity=*)
-        (msDS-AllowedToDelegateTo=*)
-        (UserAccountControl:1.2.840.113556.1.4.804:=$bitmask)
-      )
-      (|
-        (objectcategory=computer)
-        (objectcategory=person)
-        (objectcategory=msDS-GroupManagedServiceAccount)
-        (objectcategory=msDS-ManagedServiceAccount
-        )
-      )
-    )
-"@ -replace "[\s\n]", ''
 
-    $propertylist = @(
-        "servicePrincipalname", 
-        "useraccountcontrol", 
-        "samaccountname", 
-        "msDS-AllowedToDelegateTo", 
-        "msDS-AllowedToActOnBehalfOfOtherIdentity"
+function getMember($groupName){    
+    $member = @(get-ADGroup -Identity $groupName -Properties * -server "cyber.se"| select -ExpandProperty member)
+    return ($member|sort) -join ", "
+}
+
+function domaincontroller{
+   
+    
+    $groupsData =@(
+        "Account Operators Test"
+        "Administrators Test"
+        "Backup Operators Test"
+        "Domain Admins Test"
+        "Enterprise Admins Test"
+        "Print Operators Test"
+        "Schema Admins Test" 
+        "Server Operators Test"
+        "Allowed RODC Password Replication Group Test",
+        "Certificate Service DCOM Access Test",
+        "Cert Publishers Test",
+        "Distributed COM Users Test",
+        "DnsAdmins Test",
+        "Event Log Readers Test",
+        "Hyper-V Administrators Test",
+        "Protected Users Test",
+        "Remote Desktop Users Test",
+        "WinRMRemoteWMIUsers__ Test"
     )
-    $count_users = 0
-    $count_com=0
-    Get-ADObject -server $domain -LDAPFilter $filter -SearchBase $DN -SearchScope Subtree -Properties $propertylist -PipelineVariable account | ForEach-Object {
-        $isDC = ($account.useraccountcontrol -band $SERVER_TRUST_ACCOUNT) -ne 0
-        $fullDelegation = ($account.useraccountcontrol -band $TRUSTED_FOR_DELEGATION) -ne 0
-        $constrainedDelegation = ($account.'msDS-AllowedToDelegateTo').count -gt 0
-        $isRODC = ($account.useraccountcontrol -band $PARTIAL_SECRETS_ACCOUNT) -ne 0
-        $resourceDelegation = $account.'msDS-AllowedToActOnBehalfOfOtherIdentity' -ne $null
-             
-           
-        if($account.objectclass -eq "user"){
-            $count_users++
-        }
-        if($account.objectclass -eq "computer"){
-            $count_com++
-        }        
-    }
-         
-    return @{
-        "domain-unconstrained-users" = $count_users
-        "domain-unconstrained-computers" = $count_com        
-    }  
+
+    return @{        
+        "account-operators-test" = getMember $groupsData[0]
+        "administrators-test"= getMember $groupsData[1]
+        "backup-operators-test" = getMember $groupsData[2]
+        "domain-admins-test"= getMember $groupsData[3]
+        "enterprise-admins-test"=getMember $groupsData[4]
+        "print-operators-test"=getMember $groupsData[5]
+        "schema-admins-test"=getMember $groupsData[6]
+        "server-operators-test"=getMember $groupsData[7]
+        "allowed-rodc-password-replication-group-test"=getMember $groupsData[8]
+        "certificate-service-dcom-access-test"=getMember $groupsData[9]
+        "cert-publishers-test"=getMember $groupsData[10]
+        "distributed-com-users-test"=getMember $groupsData[11]
+        "dnsadmins-test"=getMember $groupsData[12]
+        "event-log-readers-test"=getMember $groupsData[13]
+        "hyper-v-administrators-test"=getMember $groupsData[14]
+        "protected-users-test"=getMember $groupsData[15]
+        "remote-desktop-users-test"=getMember $groupsData[16]
+        "winrmremotewmiusers__-test"=getMember $groupsData[17]
+    }      
 }
 
 function checkConnection{
-    param([parameter(Mandatory=$true)][string]$domain)
+    param([Parameter(Mandatory=$true)][String]$dc)
 
-    
-    $checkConnection  = Test-Connection $domain -Quiet -count 1
-    
+    $checkConnection = Test-Connection $dc -Quiet -Count 1
+
     return $checkConnection
 }
 
-$xml.list.domain.Host|%{
-    $domain = $_.domainname
-    $zabbix_host=$_.zabbixhost
-    if($(checkConnection -domain $domain) -eq $true){
-        send-zabbix -TargetHost $zabbix_host -Data $(DomainMonitor -domain $domain) -Url $zabbix_url
-    }
-    else{
-        send-zabbix -TargetHost $zabbix_host -Data @{"Connection"=$(checkConnection -domain $domain)|Out-String} -Url $zabbix_url
-    }
-    
+
+if($(checkConnection -dc $domain) -eq $true){             
+    send-zabbix -TargetHost $zabbixhost -Data $(domaincontroller) -Url $zabbix_url   
+}
+else{
+    send-zabbix -TargetHost $zabbixhost -Data @{"Connection"=$(checkConnection)|Out-String} -Url $zabbix_url
 }
