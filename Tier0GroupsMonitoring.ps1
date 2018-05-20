@@ -1,7 +1,7 @@
 param (
-    [Parameter(Mandatory=$false)][string]$zabbix_url="https://evdetect.cyber.net/ZBX/api/sender.php",
-    [Parameter(Mandatory=$false)][string]$domain = "cyber.se",
-    [Parameter(Mandatory=$false)][string]$zabbixhost = "InfraDir-ADcore-test-cyber"
+    [Parameter(Mandatory=$true)][string]$zabbix_url="https://evdetect.cyber.net/ZBX/api/sender.php",
+    [Parameter(Mandatory=$true)][string]$domain = "cyber.se",
+    [Parameter(Mandatory=$true)][string]$zabbixhost = "InfraDir-ADcore-test-cyber"
 )
 
 
